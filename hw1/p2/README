@@ -1,0 +1,14 @@
+Plot explanation:
+We can see in the plot, as the message size increases exponentially, so does the RTT for exchanging the message. The same is the case with the number of processes. As the number of processes increase exponentially, so does the RTT for exchange between them.
+
+Higher RTT for certain configurations + underlying network config explanation:
+Configurations with higher number of processes naturally take longer, as is clearly visible. So do configurations with higher number of nodes. While the latter is not immediately evident, it can be seen on closer scrutiny. Till before the message size of 512KB, the RTT is higher when the processes are on a single node compared to processes spread across nodes. At 512 KB, the RTTs are approximately the same. After this, for messages of size 1MB and 2MB, we can see the slight increase in RTT in case of multiple nodes.
+Thus for a high enough message size, if we are shown the RTTs for two configurations, the higher one will indicate processes being spread across several nodes. In cases of small message sizes, the opposite is true. Higher RTT is indicative of processes on a single node.
+This seems to indicate that in case of small messages, the overhead of writing/reading from a shared memory location between processes(in case of single node) is higher and in cases of larger messages, the communication overhead between processes across a network of nodes is higher.
+
+Message size and latency:
+As stated in the previous two sections, as message size increases, so does the latency. Also, for smaller message sizes latency is higher in single node configurations and for higher message sizes latency is higher in multi-node configurations.
+
+Odd points:
+There don't seem to be any odd points particulary, apart from a slightly higher/lower RTT(proprtionally) in certain cases such as where the message size is 2MB - Between a and d.
+What is odd is the proportionally higher standard deviation in the lower message sizes. This can be on account of the overhead of bootstrapping/init activities, which is higher than the actual message exchange. This deviation decreases greatly when initialization activities take neglegible time compared to the actual exchange tasks.

@@ -1,0 +1,34 @@
+Commands
+========
+1. To compile:
+	make -f p2.Makefile
+	OR
+	make all -f p2.Makefile
+2. To execute:
+	./p2
+	(enter intervals and blocks as prompted)
+
+Learning
+========
+I learnt how we can better and/or optimize a problem via parallelism. The iterative approach of solving this problem was very useful.
+Sequential -> Single block multi thread -> Shared memory -> Grid(multi block multi thread) -> Global reduction(parallel reduction)
+This was a good approach to learn since optimizing in increments/iterations is not as daunting or too complex, as compared to trying a highly optimized solution in one go.
+
+Results
+=======
+The following runs were done for nblocks=64 and nthreads=512
+
+Intervals	1000		10000		100000		1000000		10000000	100000000	1000000000	10000000000
+Walltime	0.000183	0.000224	0.000373	0.001396	0.012		0.128		1.246		1.999
+
+We can see that the time increases by 1 order of magnitude for several orders of magnitude of increase in the input size.
+For example, in the transition from 1billion to 10billion intervals, the time only increases from 1.24 to 1.99.
+This shows that for a wide range of increasing input size, parallelism can handle all of them.
+Past a point where parallelism cannot handle the input size in the same number of iterations as before, is when it takes longer, only to then be able to handle inputs of several orders of magnitudes past that point, till again the iterations increase.
+
+Handling threads/blocks not a power of 2
+========================================
+Block reduce works by having the first half of the threads combine the values from the ssum indices of the other half.
+When the number of threads/array size is not even is when one index gets left out from being added to an index in the first half.
+In such a case we simply check if this condition is met and add the value at the left out index to the index of the last thread of that particular reduction iteration.
+Global reduce follows the same logic as block reduce except the number of threads in this case is the original number of blocks.

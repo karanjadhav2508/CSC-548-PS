@@ -1,0 +1,33 @@
+Single Author info:
+kjadhav Karan Jadhav
+
+Commands
+--------
+1. Compile
+	make -f p1.Makefile
+2. Execute
+	./my_prun ./my_rtt
+
+Learning
+--------
+I learnt a fair bit about socket programming since I had no experience in it prior to this. I learnt about additional concepts such as dynamic port allocation, the difference between listening and connected sockets etc. I learnt about communicating between different processes via sockets and shared file system. Lastly I learnt about setting up resources(init:files, sockets, strings) and properly clearning them up after(even more important).
+
+Results
+-------
+The below were the times for my_rtt using MPI(in homework 1) and using the custom MPI from this homework. The values on the left are message sizes in bytes.
+
+MPI - HW1
+32	: 7.671780e-02 ms
+2097152	: 8.438084e+00 ms
+
+Custom MPI - HW2
+32	: 8.667222e+00 ms
+2097152	: 1.530458e+02 ms
+
+We can notice a couple of things from these results:
+
+1. Communication setup overhead : Looking at the 32 byte message results for both implementations, we see that any overhead that MPI might incur, if at all, in setting up a connection for communication(after Init) is neglegible. On the other hand setting up sockets between 2 processes for communication, in case of custom MPI, is very expensive. 2 orders of magnitude more expensive than MPI to be precise.
+
+2. Message size based RTT : Comparing the times for 32 and 2097152 bytes(2MB) in both cases, we can see that relatively they are similar. The RTT for a 2MB message being 2 orders of magnitude greater than the one for 32 bytes in both cases.
+
+Thus we see that communication via sockets is much slower than MPI, not just in terms of setting up connection/communication between two processes, but also the actual transfer of data.
