@@ -1,0 +1,29 @@
+/* Single Author info:
+ * kjadhav Karan Jadhav
+ */
+
+Compile and run:
+===============
+srun -N4 -popteron --pty /bin/bash
+make
+mpirun -np 4 ./TFIDF
+
+Implementation:
+===============
+Process 0 is the master as required in the problem statement. It reads the input directory and makes a count of all the documents present.
+Next this count is broadcaster to all the other processes.
+Each process(worker) begins with reading the document correspoding to its rank and process it as done in the serial code.
+Workers avoid conflicts over documents by taking strides equal to the number of workers.
+
+After each worker has processed its share of files, it sends the following info to the master(0) in the form of MPI messages:
+1. Count of relevant data(TFIDF_idx) in the TFIDF array
+2. Actual TFIDF data
+3. Count of relevant data(u_w_idx) in the unique_words array
+4. Actual unique_words data
+
+Process 0 receives this data from each process one by one, beginning from process 1.
+The reason for this is that each process has a different size of data they want to send which needs to be communicated first to the master so that it can then receive only the relevant data. This is why gather couldn't be used, because if it had to be, we'd have to initialize non-existent data to some default value and send over entire arrays of TFIDF and unique_words of each worker to the master. Either strategy would depend on the amount of data and the number of workers we had. In this case the former is better since we have few workers and the relevant data compared to the irrelevant data is much lesser, so doesn't make sense sending over so much unnecessary data.
+
+Next the master aggregates the received data. In case of TFIDF it simple combines the data to its TFIDF array.
+In case of unique_words it's different because two workers could have considered a common word to be unique.
+So every "unique word" is checked first if it exists in the master's unique_words array and then actioned accordingly.

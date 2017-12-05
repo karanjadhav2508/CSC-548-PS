@@ -1,3 +1,7 @@
+/* Single Author info:
+ * kjadhav Karan Jadhav 
+ */
+
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
@@ -36,18 +40,21 @@ static int myCompare (const void * a, const void * b)
 
 int main(int argc , char *argv[]){
 
+	//MPI custom data type for struct obj
 	MPI_Datatype temp_obj, MPI_obj;
 	MPI_Datatype type_obj[6] = {MPI_CHAR, MPI_CHAR, MPI_INT, MPI_INT, MPI_INT, MPI_INT};
 	int blocklen_obj[6] = {32, 8, 1, 1, 1, 1};
 	MPI_Aint disp_obj[6] = {offsetof(obj,word), offsetof(obj,document), offsetof(obj,wordCount), offsetof(obj,docSize), offsetof(obj,numDocs), offsetof(obj,numDocsWithWord)};
 	MPI_Aint lb_obj, extent_obj;
 
+	//MPI custom data type for struct u_w
 	MPI_Datatype temp_u_w, MPI_u_w;
 	MPI_Datatype type_u_w[3] = {MPI_CHAR, MPI_INT, MPI_INT};
 	int blocklen_u_w[3] = {32, 1, 1};
 	MPI_Aint disp_u_w[3] = {offsetof(u_w, word), offsetof(u_w, numDocsWithWord), offsetof(u_w, currDoc)};
 	MPI_Aint lb_u_w, extent_u_w;
 
+	//Standard MPI information : number of processes, rank etc.
 	/* process information */
 	int num_proc, rank;
 	/* initialize MPI */
@@ -76,16 +83,19 @@ int main(int argc , char *argv[]){
 	// Will hold the final strings that will be printed out
 	word_document_str strings[MAX_WORDS_IN_CORPUS];
 	
+	//Creating MPI custom datatype based off u_w
 	MPI_Type_create_struct(3, blocklen_u_w, disp_u_w, type_u_w, &temp_u_w);
 	MPI_Type_get_extent(temp_u_w, &lb_u_w, &extent_u_w);
 	MPI_Type_create_resized(temp_u_w, lb_u_w, extent_u_w, &MPI_u_w);
 	MPI_Type_commit(&MPI_u_w);
 
+	//Creating MPI custom data type based off obj
 	MPI_Type_create_struct(6, blocklen_obj, disp_obj, type_obj, &temp_obj);
 	MPI_Type_get_extent(temp_obj, &lb_obj, &extent_obj);
         MPI_Type_create_resized(temp_obj, lb_obj, extent_obj, &MPI_obj);
 	MPI_Type_commit(&MPI_obj);
 
+	//Rank 0 reads directory and counts number of documents
 	if(rank==0) {
 		//Count numDocs
 		if((files = opendir("input")) == NULL){
@@ -100,6 +110,7 @@ int main(int argc , char *argv[]){
 		}
 	}
 
+	//Broadcast from 0 to all other ranks(workers) the number of documents
 	MPI_Bcast(&numDocs, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	if(numDocs < numWorkers) {
 		if(rank==0)
@@ -107,6 +118,8 @@ int main(int argc , char *argv[]){
 		exit(0);
 	}
 
+	//All other ranks(workers) read a document corresponding to their rank and do so iteratively over all documents, taking a stride=number of workers, to avoid clashes
+	//Do the standard TFIDF, unique_words calculation that was done in the serial program
 	if(rank != 0) {
 		for(i = rank; i <= numDocs; i += numWorkers) {
 			sprintf(document, "doc%d", i);
@@ -167,13 +180,15 @@ int main(int argc , char *argv[]){
 			}
 			fclose(fp);
 		}
-		
+		//Communicate count of TFIDF that has data followed by the actual data
 		MPI_Send(&TF_idx, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
 		MPI_Send(&TFIDF, TF_idx, MPI_obj, 0, 0, MPI_COMM_WORLD);
+		//Communicate count of unique_words that has data followed by the actual data
 		MPI_Send(&uw_idx, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
 		MPI_Send(&unique_words, uw_idx, MPI_u_w, 0, 0, MPI_COMM_WORLD);
 		
-	} //IF rank != 0
+	}
+	// Rank 0, received the count of followed by the actual data of TFIDF and unique_words from each process
 	else {
 		int worker_TF_idx, worker_uw_idx;
 		obj worker_TFIDF[MAX_WORDS_IN_CORPUS];
@@ -183,6 +198,7 @@ int main(int argc , char *argv[]){
 			MPI_Recv(&worker_TFIDF, worker_TF_idx, MPI_obj, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			MPI_Recv(&worker_uw_idx, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			MPI_Recv(&worker_unique_words, worker_uw_idx, MPI_u_w, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			//TFIDF : data is simple put into 0's TFIDF array
 			for(j=0; j<worker_TF_idx; j++) {
 				strcpy(TFIDF[TF_idx].word, worker_TFIDF[j].word);
                                 strcpy(TFIDF[TF_idx].document, worker_TFIDF[j].document);
@@ -191,11 +207,13 @@ int main(int argc , char *argv[]){
                                 TFIDF[TF_idx].numDocs = worker_TFIDF[j].numDocs;
                                 TF_idx++;	
 			}
+			//unique_word : each element received from each process is checked if it exists in 0's unique_words array and actioned accordingly
 			for(j=0; j<worker_uw_idx; j++) {
 				contains = 0;
 				for(int k=0; k<uw_idx; k++) {
                                 	if(!strcmp(unique_words[k].word, worker_unique_words[j].word)){
                                         	contains = 1;
+                                                unique_words[k].numDocsWithWord += worker_unique_words[j].numDocsWithWord;
                                                 unique_words[k].numDocsWithWord += worker_unique_words[j].numDocsWithWord;
                                         	break;
                                 	}
